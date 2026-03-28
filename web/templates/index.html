@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ClassPush · 发送消息</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "HarmonyOS Sans SC", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 28px 24px;
+            max-width: 480px;
+            margin: 0 auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+        .header { text-align: center; margin-bottom: 24px; }
+        .header h1 { font-size: 24px; color: #1a1a2e; margin-bottom: 4px; }
+        .header p { font-size: 14px; color: #888; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block; font-size: 14px; font-weight: bold;
+            color: #333; margin-bottom: 6px;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%; padding: 12px 16px;
+            border: 2px solid #e0e0e0; border-radius: 12px;
+            font-size: 16px; font-family: inherit;
+            outline: none; transition: border-color 0.2s; background: white;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            border-color: #4361ee;
+        }
+        .form-group textarea { min-height: 120px; resize: vertical; }
+        .btn-send {
+            width: 100%; padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; border-radius: 26px;
+            font-size: 18px; font-weight: bold; cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .btn-send:hover { transform: scale(1.02); box-shadow: 0 8px 25px rgba(102,126,234,0.4); }
+        .btn-send:active { transform: scale(0.98); }
+        .btn-send.success { background: linear-gradient(135deg, #27ae60, #2ecc71); }
+        .btn-send:disabled { opacity: 0.7; cursor: not-allowed; }
+        .toast {
+            position: fixed; top: 20px; left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            padding: 12px 24px; border-radius: 12px;
+            color: white; font-size: 15px; font-weight: bold;
+            z-index: 100; transition: transform 0.3s ease;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.success { background: #27ae60; }
+        .toast.error { background: #e74c3c; }
+        .history-section { margin-top: 24px; padding-top: 16px; border-top: 1px solid #eee; }
+        .history-section h3 { font-size: 16px; color: #555; margin-bottom: 12px; }
+        .history-item {
+            padding: 10px 0; border-bottom: 1px solid #f0f0f0;
+            font-size: 13px; color: #666;
+        }
+        .history-item:last-child { border-bottom: none; }
+        .history-item .time { color: #999; font-size: 12px; }
+        .char-count { text-align: right; font-size: 12px; color: #999; margin-top: 4px; }
+        .char-count.over { color: #FF3B30; }
+        .duration-row {
+            display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
+        }
+        .duration-row label { display: block; font-size: 14px; font-weight: bold; color: #333; margin-bottom: 6px; width: 100%; }
+        .dur-btn {
+            padding: 8px 16px; border: 2px solid #e0e0e0; border-radius: 10px;
+            font-size: 14px; background: white; cursor: pointer; transition: all 0.2s;
+        }
+        .dur-btn.active { border-color: #4361ee; background: #eef2ff; color: #4361ee; font-weight: bold; }
+        .dur-custom { display: none; }
+        .dur-custom.show { display: flex; align-items: center; gap: 8px; }
+        .dur-custom input {
+            width: 80px; padding: 8px; border: 2px solid #e0e0e0; border-radius: 10px;
+            font-size: 14px; text-align: center;
+        }
+        .pwd-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); display: flex;
+            align-items: center; justify-content: center; z-index: 200;
+        }
+        .pwd-card {
+            background: white; border-radius: 20px; padding: 32px;
+            max-width: 360px; width: 90%; text-align: center;
+        }
+        .pwd-card h2 { margin-bottom: 16px; color: #1a1a2e; }
+        .pwd-card input {
+            width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0;
+            border-radius: 12px; font-size: 18px; text-align: center;
+            letter-spacing: 8px; margin-bottom: 16px;
+        }
+        .pwd-card button {
+            width: 100%; padding: 12px; background: #4361ee; color: white;
+            border: none; border-radius: 20px; font-size: 16px; font-weight: bold; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="pwd-overlay" id="pwdOverlay" style="display:none;">
+        <div class="pwd-card">
+            <h2>🔐 需要密码</h2>
+            <p style="color:#888;margin-bottom:16px;">请输入访问密码</p>
+            <input type="password" id="pwdInput" placeholder="密码" maxlength="20">
+            <button onclick="submitPassword()">确认</button>
+        </div>
+    </div>
+
+    <div class="card" id="mainCard">
+        <div class="header">
+            <h1>📤 ClassPush</h1>
+            <p>班级消息发送</p>
+        </div>
+
+        <div class="form-group">
+            <label>消息类型</label>
+            <input type="text" id="msgType" placeholder="如：作业、通知、考试" maxlength="20">
+        </div>
+
+        <div class="form-group">
+            <label>您的称呼</label>
+            <input type="text" id="sender" placeholder="如：张老师" maxlength="20">
+        </div>
+
+        <div class="form-group">
+            <label>消息内容</label>
+            <textarea id="content" placeholder="在此输入消息内容..." maxlength="500"></textarea>
+            <div class="char-count" id="charCount">0/500</div>
+        </div>
+
+        <div class="duration-row">
+            <label>显示时间</label>
+            <button class="dur-btn active" data-min="0" onclick="selectDuration(this)">不限制</button>
+            <button class="dur-btn" data-min="5" onclick="selectDuration(this)">5分钟</button>
+            <button class="dur-btn" data-min="60" onclick="selectDuration(this)">1小时</button>
+            <button class="dur-btn" data-min="720" onclick="selectDuration(this)">12小时</button>
+            <button class="dur-btn" data-min="-1" onclick="selectDuration(this)">自定义</button>
+            <div class="dur-custom" id="durCustom">
+                <input type="number" id="durCustomMin" value="30" min="1" max="1440">
+                <span style="font-size:14px;color:#666;">分钟</span>
+            </div>
+        </div>
+
+        <button class="btn-send" id="btnSend" onclick="sendMessage()">📤 发送</button>
+
+        <div class="history-section">
+            <h3>📋 最近发送</h3>
+            <div id="historyList">
+                <div class="history-item" style="color:#999;">暂无记录</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const senderInput = document.getElementById('sender');
+        const contentInput = document.getElementById('content');
+        const charCount = document.getElementById('charCount');
+        const btnSend = document.getElementById('btnSend');
+        const toast = document.getElementById('toast');
+        let selectedDuration = 0;
+        let savedPassword = localStorage.getItem('classpush_pwd') || '';
+
+        senderInput.value = localStorage.getItem('classpush_sender') || '';
+        document.getElementById('msgType').value = localStorage.getItem('classpush_type') || '';
+
+        contentInput.addEventListener('input', () => {
+            const len = contentInput.value.length;
+            charCount.textContent = len + '/500';
+            charCount.className = len > 500 ? 'char-count over' : 'char-count';
+        });
+
+        function selectDuration(btn) {
+            document.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedDuration = parseInt(btn.dataset.min);
+            document.getElementById('durCustom').classList.toggle('show', selectedDuration === -1);
+        }
+
+        function showToast(msg, type) {
+            toast.textContent = msg;
+            toast.className = 'toast ' + type + ' show';
+            setTimeout(() => { toast.className = 'toast'; }, 2500);
+        }
+
+        async function checkAuth() {
+            try {
+                const resp = await fetch('/api/status');
+                const data = await resp.json();
+                if (data.has_password) {
+                    const authResp = await fetch('/api/auth', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password: savedPassword })
+                    });
+                    if (!authResp.ok) {
+                        document.getElementById('pwdOverlay').style.display = 'flex';
+                        return false;
+                    }
+                }
+            } catch (e) {}
+            return true;
+        }
+
+        function submitPassword() {
+            const pwd = document.getElementById('pwdInput').value;
+            savedPassword = pwd;
+            localStorage.setItem('classpush_pwd', pwd);
+            document.getElementById('pwdOverlay').style.display = 'none';
+            checkAuth();
+        }
+
+        document.getElementById('pwdInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') submitPassword();
+        });
+
+        async function sendMessage() {
+            const content = contentInput.value.trim();
+            if (!content) { showToast('请输入消息内容', 'error'); return; }
+            if (content.length > 500) { showToast('消息内容不能超过500字', 'error'); return; }
+
+            const sender = senderInput.value.trim() || '老师';
+            const msgType = document.getElementById('msgType').value.trim() || '通知';
+            localStorage.setItem('classpush_sender', sender);
+            localStorage.setItem('classpush_type', msgType);
+
+            let duration = selectedDuration;
+            if (duration === -1) {
+                duration = parseInt(document.getElementById('durCustomMin').value) || 30;
+            }
+
+            const data = {
+                type: msgType,
+                sender: sender,
+                content: content,
+                duration_minutes: duration,
+                password: savedPassword
+            };
+
+            btnSend.disabled = true;
+            btnSend.textContent = '发送中...';
+
+            try {
+                const resp = await fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (resp.ok) {
+                    showToast('✓ 发送成功!', 'success');
+                    btnSend.textContent = '✓ 已发送';
+                    btnSend.classList.add('success');
+                    contentInput.value = '';
+                    charCount.textContent = '0/500';
+                    loadHistory();
+                } else {
+                    const err = await resp.json();
+                    showToast(err.error || '发送失败', 'error');
+                    if (resp.status === 401) {
+                        document.getElementById('pwdOverlay').style.display = 'flex';
+                    }
+                }
+            } catch (e) {
+                showToast('网络错误，请检查连接', 'error');
+            } finally {
+                setTimeout(() => {
+                    btnSend.disabled = false;
+                    btnSend.textContent = '📤 发送';
+                    btnSend.classList.remove('success');
+                }, 1500);
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const resp = await fetch('/api/messages?limit=5');
+                const data = await resp.json();
+                const list = document.getElementById('historyList');
+                if (data.messages && data.messages.length > 0) {
+                    list.innerHTML = data.messages.map(m => {
+                        const type = m.type || '通知';
+                        const content = m.content.length > 30 ? m.content.slice(0, 30) + '...' : m.content;
+                        const time = m.created_at ? m.created_at.slice(11, 16) : '';
+                        const dur = m.duration_minutes > 0 ? ` [${m.duration_minutes}分]` : '';
+                        return `<div class="history-item">[${type}] ${m.sender}: ${content} <span class="time">${time}${dur}</span></div>`;
+                    }).join('');
+                }
+            } catch (e) {}
+        }
+
+        checkAuth();
+        loadHistory();
+
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
